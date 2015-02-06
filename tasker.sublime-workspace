@@ -1,0 +1,1850 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"items",
+				"items"
+			],
+			[
+				"php",
+				"phpinfo"
+			],
+			[
+				"align",
+				"vertical-align"
+			],
+			[
+				"border-wid",
+				"border-bottom-width"
+			],
+			[
+				"back",
+				"background-color"
+			],
+			[
+				"u",
+				"ul	<ul>"
+			],
+			[
+				"sub",
+				"sub	Tag"
+			],
+			[
+				"table",
+				"table_header"
+			],
+			[
+				"prin",
+				"print_r"
+			],
+			[
+				"prio",
+				"priority"
+			],
+			[
+				"st",
+				"strong	Tag"
+			],
+			[
+				"h",
+				"h3	Tag"
+			],
+			[
+				"d",
+				"div"
+			],
+			[
+				"Sty",
+				"style"
+			],
+			[
+				"EXI",
+				"exists"
+			],
+			[
+				"di",
+				"display"
+			],
+			[
+				"mainbody",
+				"mainbody_iframe"
+			],
+			[
+				"min",
+				"min-width"
+			],
+			[
+				"con",
+				"console"
+			],
+			[
+				"bac",
+				"background-color"
+			],
+			[
+				"ind",
+				"text-indent"
+			],
+			[
+				"co",
+				"console"
+			],
+			[
+				"al",
+				"text-align"
+			],
+			[
+				"a",
+				"vertical-align"
+			],
+			[
+				"sr",
+				"script	Tag"
+			],
+			[
+				"task_",
+				"task_input"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "<?php\n\nnamespace asva\\tasker;\n\n//\n// Static class\nclass Database\n{\n	public static $sqls =\n	[\n		\"user\" => \"CREATE TABLE `user` (\n			`userID` int(10) unsigned NOT NULL AUTO_INCREMENT,\n			`login` varchar(255) NOT NULL,\n			`email` varchar(255) NOT NULL,\n			`password` varchar(51) NOT NULL,\n			PRIMARY KEY (`userID`),\n			UNIQUE KEY `name` (`name`,`email`)\n		) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Users table'\",\n\n        \"category\" => \"CREATE TABLE `category` (\n            `categoryID` int(10) unsigned NOT NULL AUTO_INCREMENT,\n            `categoryName` varchar(255) NOT NULL,\n            `userID` int(10) unsigned NOT NULL,\n            PRIMARY KEY (`categoryID`),\n            FOREIGN KEY (userID) REFERENCES user(userID)\n        ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Options table'\",\n\n		\"option\" => \"CREATE TABLE `option` (\n			`userID` int(10) unsigned NOT NULL,\n			`isNumber` tinyint(1) NOT NULL DEFAULT '0',\n			`optionKey` varchar(255) NOT NULL,\n			`optionValue` varchar(255) NOT NULL,\n            FOREIGN KEY (userID) REFERENCES user(userID)\n		) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Options table'\",\n\n        \"task\" => \"CREATE TABLE `task` (\n            `taskID` int(10) unsigned NOT NULL AUTO_INCREMENT,\n            PRIMARY KEY (`taskID`),\n            `userID` int(10) unsigned NOT NULL,\n            FOREIGN KEY (userID) REFERENCES user(userID),\n            `categoryID` int(10) unsigned NOT NULL,\n            FOREIGN KEY (categoryID) REFERENCES category(categoryID),\n            `taskName` varchar(255) NOT NULL,\n            `taskInfo` varchar(10000) NOT NULL,\n            `priority` int(100) unsigned DEFAULT '5',\n            `tsCreated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            `repeatable` tinyint(1) NOT NULL DEFAULT '0',\n            `isCompleted` tinyint(1) NOT NULL DEFAULT '0',\n            `tsCompleted` TIMESTAMP DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP\n        ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Tasks table'\",\n	];\n\n	// Config db access here\n	public static $db_params =\n	[\n		\"servername\" => \"localhost\",\n		\"username\"   => \"root\",\n		\"password\"   => \"\",\n		\"dbname\"     => \"asva_db\",\n	];\n\n	// Establish connection.\n	public static function connect ()\n	{\n		$db_params  = self::$db_params;\n		$servername = $db_params[\"servername\"];\n		$username   = $db_params[\"username\"  ];\n		$password   = $db_params[\"password\"  ];\n		$dbname     = $db_params[\"dbname\"    ];\n\n		// Check connection\n		try{\n			$conn = new \\PDO( \"mysql:host=$servername;dbname=$dbname\", $username, $password);\n			$conn->setAttribute( \\PDO::ATTR_ERRMODE, \\PDO::ERRMODE_EXCEPTION );\n		}\n		catch(exception $e){\n			die(print_r($e));\n		}\n		return $conn;\n	}\n\n	// Create table. Assume database already exists.\n	//\n	public static function createTable ($type)\n	{\n		$sql = self::$sqls[$type];\n		$conn = Database::connect();\n\n		try{\n			$conn->query($sql);\n		}\n		catch(exception $e){\n			print_r($e);\n		}\n\n		echo (\"Table `\".$type.\"` has been created.\");\n	}\n\n    // Drop table. Assumes table already exists\n    public static function dropTable ($type)\n    {\n        $conn = Database::connect();\n\n        $sql = \"DROP TABLE IF EXISTS `\". $type .\"`;\";\n        echo ($sql);\n        try{\n            $conn->query($sql);\n        }\n        catch(exception $e){\n            print_r($e);\n        }\n        echo (\"Table `\".$type.\"` has been deleted.\");\n    }\n\n    // Get from specified table\n    public static function getItems ($columns = \"*\", $table = \"task\",\n        $userID = 1, $naturalJoin = \"\")\n    {\n        $conn = Database::connect();\n\n        // if @columns set — use as header\n        if ($columns !== \"*\"){\n            $columns = explode (\", \", $columns);\n            $padding = array(array(\"`\",\"`, `\",\"`\"));\n        }\n        else\n        {   // Otherwise — get from db\n            $columns_sql = \"SELECT `COLUMN_NAME`\n                FROM `INFORMATION_SCHEMA`.`COLUMNS`\n                WHERE `TABLE_SCHEMA`='asva_db'\n                AND TABLE_NAME='\". $table .\"';\";\n\n            $stmt = $conn->query($columns_sql);\n            $columns = $stmt->fetchAll(\\PDO::FETCH_NUM);\n            $padding = array(array(\"`\"),array(\"\",\", \",\"\"));\n        }\n        // Insert ticks\n        $columns = insertPadding ($columns, $padding);\n\n        $header = str_replace (\"`\",\"\",$columns);\n        $header = explode (\", \", $header);\n\n        if ($naturalJoin)\n            $naturalJoin = \"NATURAL JOIN `$naturalJoin`\";\n        $table = \"`$table`\";\n\n        $sql = \"SELECT \". $columns .\" FROM $table $naturalJoin WHERE userID='$userID'\";\n        echo ($sql . '<br>');\n        $stmt = $conn->query($sql);\n        $body = $stmt->fetchAll(\\PDO::FETCH_NUM);\n        //array_unshift ($body, $header);\n        return [\"body\"=>$body, \"header\"=>$header];\n    }\n}\n?>\n",
+			"file": "src/Database.php",
+			"file_size": 4934,
+			"file_write_time": 130650692050744507,
+			"settings":
+			{
+				"buffer_size": 4775,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "index.php",
+			"settings":
+			{
+				"buffer_size": 3226,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "src/User.php",
+			"settings":
+			{
+				"buffer_size": 4519,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/D/Program files/TCPU63/Wincmd.ini",
+			"settings":
+			{
+				"buffer_size": 32703,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "src/functions.php",
+			"settings":
+			{
+				"buffer_size": 3555,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"contents": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n\n<table>\n\n	<metadata>\n		<column name='name' label='NAME' datatype='string' editable='true'></column>\n		<column name='firstname' label='FIRSTNAME' datatype='string' editable='true'></column>\n		<column name='age' label='AGE' datatype='integer' editable='true'></column>\n		<column name='height' label='HEIGHT' datatype='double(m,2)' editable='true'></column>\n		<column name='country' label='COUNTRY' datatype='string' editable='true'>\n			<values>\n				<group label='Europe'>\n					<value value='be'>Belgium</value>\n					<value value='fr'>France</value>\n					<value value='uk'>Great-Britain</value>\n					<value value='nl'>Nederland</value>\n				</group>\n				<group label='America'>\n					<value value='br'>Brazil</value>\n					<value value='ca'>Canada</value>\n					<value value='us'>USA</value>\n				</group>\n				<group label='Africa'>\n					<value value='ng'>Nigeria</value>\n					<value value='za'>South-Africa</value>\n					<value value='zw'>Zimbabwe</value>\n				</group>\n			</values>\n		</column>\n		<column name='email' label='EMAIL' datatype='email' editable='true'></column>\n		<column name='freelance' label='FREELANCE' datatype='boolean' editable='true'></column>\n		<column name='lastvisit' label='LAST VISIT' datatype='date' editable='true'></column>\n	</metadata>\n\n	<data>\n\n		<!-- NB: It is recommended to name your columns. \n			 This way you can give them in any order and skip some columns if you want. \n		-->\n		<row id=\"1\">\n			<column name=\"country\">uk</column>\n			<column name=\"age\">33</column>\n			<column name=\"name\">Duke</column>\n			<column name=\"firstname\">Patience</column>\n			<column name=\"height\">1.842</column>\n			<column name=\"email\">patience.duke@gmail.com</column>\n			<column name=\"lastvisit\">11/12/2002</column>\n		</row>\n\n		<!-- ... but naming the columns is not mandatory. \n			 The order used in metadata must then be respected. \n		-->\n		<row id=\"2\">\n			<column>Rogers</column>		\n			<column>Denise</column>		\n			<column>59</column>		\n			<column>1.627</column>\n			<column>us</column>\n			<column>rogers.d@gmail.com</column>\n			<column></column>\n			<column>07/05/2003</column>\n		</row>\n\n		<row id=\"3\">\n			<column name=\"name\">Dujardin</column>		\n			<column name=\"firstname\">Antoine</column>		\n			<column name=\"age\">21</column>		\n			<column name=\"height\">1.73</column>		\n			<column name=\"country\">fr</column>\n			<column name=\"email\">felix.compton@yahoo.fr</column>\n			<column name=\"freelance\">true</column>\n			<column name=\"lastvisit\">21/02/1999</column>\n		</row>\n\n		<row id=\"4\">\n			<column name=\"name\">Conway</column>		\n			<column name=\"firstname\">Coby</column>		\n			<column name=\"age\">47</column>		\n			<column name=\"height\">1.96</column>		\n			<column name=\"country\">za</column>\n			<column name=\"email\">coby@conwayinc.com</column>\n			<column name=\"freelance\">true</column>\n			<column name=\"lastvisit\">01/12/2007</column>\n		</row>\n\n		<row id=\"5\">\n			<column name=\"name\">Shannon</column>		\n			<column name=\"firstname\">Rana</column>		\n			<column name=\"age\">24</column>		\n			<column name=\"height\">1.56</column>		\n			<column name=\"country\">nl</column>\n			<column name=\"email\">ranna.shannon@hotmail.com</column>\n			<column name=\"freelance\">false</column>\n			<column name=\"lastvisit\">07/10/2009</column>		\n		</row>\n\n		<row id=\"6\">\n			<column name=\"name\">Benton</column>		\n			<column name=\"firstname\">Jasmine</column>		\n			<column name=\"age\">61</column>		\n			<column name=\"height\">1.71</column>		\n			<column name=\"country\">ca</column>\n			<column name=\"email\">jasmine.benton@yahoo.com</column>\n			<column name=\"freelance\">false</column>\n			<column name=\"lastvisit\">13/01/2009</column>\n		</row>\n\n		<row id=\"7\">\n			<column name=\"name\">Belletoise</column>		\n			<column name=\"firstname\">André</column>		\n			<column name=\"age\">31</column>		\n			<column name=\"height\">1.84</column>		\n			<column name=\"country\">be</column>\n			<column name=\"email\">belletoise@kiloutou.be</column>\n			<column name=\"freelance\">true</column>\n			<column name=\"lastvisit\"></column>\n		</row>\n\n		<row id=\"8\">\n			<column name=\"name\">Santa-Maria</column>		\n			<column name=\"firstname\">Martin</column>		\n			<column name=\"age\">37</column>		\n			<column name=\"height\">1.80</column>		\n			<column name=\"country\">br</column>\n			<column name=\"email\">martin.sm@gmail.com</column>\n			<column name=\"freelance\">false</column>\n			<column name=\"lastvisit\">12/06/1995</column>\n		</row>\n\n		<row id=\"9\">\n			<column name=\"name\">Dieumerci</column>		\n			<column name=\"firstname\">Amédé</column>		\n			<column name=\"age\">37</column>		\n			<column name=\"height\">1.81</column>		\n			<column name=\"country\">ng</column>\n			<column name=\"email\">dieumerci@gmail.com</column>\n			<column name=\"freelance\">true</column>\n			<column name=\"lastvisit\">05/07/2009</column>\n		</row>\n\n		<row id=\"10\">\n			<column name=\"name\">Morin</column>		\n			<column name=\"firstname\">Wanthus</column>		\n			<column name=\"age\">46</column>		\n			<column name=\"height\">1.77</column>		\n			<column name=\"country\">zw</column>\n			<column name=\"email\">morin.x@yahoo.xml.com</column>\n			<column name=\"freelance\">false</column>\n			<column name=\"lastvisit\">04/03/2004</column>\n		</row>\n	</data>\n</table>\n",
+			"file": "/D/wamp/www/editablegrid-master/examples/minimal/grid.xml",
+			"file_size": 5140,
+			"file_write_time": 130650090200000000,
+			"settings":
+			{
+				"buffer_size": 5137,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "js/tasker.js",
+			"settings":
+			{
+				"buffer_size": 2754,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "src/Key.php",
+			"settings":
+			{
+				"buffer_size": 900,
+				"line_ending": "Windows"
+			}
+		}
+	],
+	"build_system": "",
+	"command_palette":
+	{
+		"height": 375.0,
+		"selected_items":
+		[
+			[
+				"Remote PHPUnit: ",
+				"Remote PHPUnit: Run all"
+			],
+			[
+				"pack",
+				"Package Control: Install Package"
+			],
+			[
+				"package",
+				"Package Control: Remove Package"
+			],
+			[
+				"packa",
+				"Package Control: Disable Package"
+			],
+			[
+				"PHP Code Sniffer: ",
+				"PHP Code Sniffer: Sniff this file"
+			],
+			[
+				"Snippet: dft",
+				"Snippet: <fieldset>"
+			],
+			[
+				"insta",
+				"Package Control: Install Package"
+			],
+			[
+				"instal",
+				"Package Control: Install Package"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"install ",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: ",
+				"Package Control: Disable Package"
+			],
+			[
+				"inst",
+				"Package Control: Install Package"
+			],
+			[
+				"ins",
+				"Package Control: Install Package"
+			],
+			[
+				"packgae",
+				"Package Control: Disable Package"
+			],
+			[
+				"",
+				"Package Control: Disable Package"
+			],
+			[
+				"add repo",
+				"Package Control: Add Repository"
+			],
+			[
+				"packag",
+				"Package Control: Install Package"
+			],
+			[
+				"in",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: install",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Cont",
+				"Preferences: Package Control Settings – Default"
+			],
+			[
+				"inde",
+				"Indentation: Reindent Lines"
+			],
+			[
+				"indent",
+				"Indentation: Reindent Lines"
+			],
+			[
+				"reinde",
+				"Indentation: Reindent Lines"
+			],
+			[
+				"html",
+				"Snippet: html"
+			],
+			[
+				"Package Control: in",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: ins",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 514.0
+	},
+	"console":
+	{
+		"height": 494.0,
+		"history":
+		[
+			"import urllib.request,os; pr='Preferences.sublime-settings'; ip='ignored_packages'; n='Package Control'; s=sublime.load_settings(pr); ig=s.get(ip); ig.append(n); s.set(ip,ig); sublime.save_settings('Preferences.sublime-settings'); pf=n+'.sublime-package'; urllib.request.install_opener(urllib.request.build_opener(urllib.request.ProxyHandler())); by=urllib.request.urlopen('https://packagecontrol.io/'+pf.replace(' ','%20')).read(); open(os.path.join(sublime.installed_packages_path(),pf),'wb').write(by); ig.remove(n); s.set(ip,ig); sublime.save_settings(pr); print('Package Control: 3.0.0 upgrade successful!')",
+			"cd",
+			"composer install",
+			"cd",
+			"composer install d:\\wamp\\www\\uFlex\\composer.json",
+			"composer ?",
+			"composer install d:\\wamp\\www\\uFlex\\autoload.php",
+			"composer install composer install ",
+			"composer install ",
+			"autosave",
+			"close",
+			"import urllib.request,os,hashlib; h = '7183a2d3e96f11eeadd761d777e62404' + 'e330c659d4bb41d3bdf022e94cab3cd0'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by) ",
+			"import urllib.request,os; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); open(os.path.join(ipp, pf), 'wb').write(urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ','%20')).read())"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/D/wamp/www/Tasker_2"
+	],
+	"file_history":
+	[
+		"/D/1) !!!/editablegrid-master/examples/minimal/index.html",
+		"/D/1) !!!/editablegrid-master/examples/index.html",
+		"/C/Users/Asva/AppData/Local/Temp/_tc/editablegrid-master/php/EditableGrid.php",
+		"/D/1) !!!/1/DisableForceCapBlt_XP.reg",
+		"/C/required_software/CUSTOM_CONFIG.INI",
+		"/C/BIOS/ROOT_me!.bat",
+		"/D/3) Installs/Прошивка/Teclast Air 3G x98/root.rar/ROOT_me!.bat",
+		"/C/Users/Asva/AppData/Local/Temp/_tc/skin/classic/console.css",
+		"/D/1) !!!/1/1/skin/classic/panelbase.css",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/Dwarf Fortress/data/save/region1/raw/objects/reaction_orcfort.txt",
+		"/D/wamp/www/Tasker_2/tests/src/DatabaseTest.php",
+		"/D/wamp/www/Tasker_2/src/functions.php",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/Default/Default (Windows).sublime-keymap",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/DB.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/tests/src/DBTest.php",
+		"/D/wamp/www/Tasker_2/css/skeleton.css",
+		"/D/wamp/www/Tasker_2/css/base.css",
+		"/D/wamp/bin/apache/apache2.4.9/bin/php.ini",
+		"/D/wamp/www/Tasker_2/src/taskmodel.php",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/User/SublimeLinter.sublime-settings",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/SublimeLinter/SublimeLinter.sublime-settings",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/Default/Preferences.sublime-settings",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/User/phpcs.sublime-settings",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/index.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/Dwarf Fortress/data/save/region1/raw/objects/reaction_masterwork2.txt",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/Dwarf Fortress/data/save/region1/raw/objects/building_furnaces_masterwork.txt",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/entities.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/Dwarf Fortress/raw/objects/reaction_orcfort.txt",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/items_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/MasterworkDwarfFortress/repository/items_warlock.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/pets_warlock.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/workshop_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/MasterworkDwarfFortress/repository/workshop_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/MasterworkDwarfFortress/repository/pets_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF v6.1/MasterworkDwarfFortress/repository/pets_warlock.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/materials_warlock.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/plants.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/MasterworkDwarfFortress/repository/materials_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/MasterworkDwarfFortress/repository/getting_started_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF v6.1/MasterworkDwarfFortress/repository/getting_started_warlock.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/getting_started_warlock.html",
+		"/D/5) Games/Dwarf fortress/MasterworkDF V6.2/Dwarf Fortress/dfhack.init",
+		"/D/5) Games/Dwarf fortress/MasterworkDF v6.1/MasterworkDwarfFortress/repository/workshop_warlock.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/workshop_warlock_eng.html",
+		"/D/Program files/Vim/_vimrc",
+		"/D/5) Games/Dwarf fortress/MasterworkDF v6.1/Dwarf Fortress/dfhack.init",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/creatures.html",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/User/Masterwork manual table.sublime-snippet",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/User/Package Control.sublime-settings",
+		"/C/Users/Asva/AppData/Local/Temp/tmprw13b_/working/Package Control.sublime-settings",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/css/style.css",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/Collection.php",
+		"/D/wamp/www/Tasker_2/tests/src/LinkedCollectionTest.php",
+		"/D/wamp/www/Tasker_2/src/LinkedCollection.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/autoload.php",
+		"/D/wamp/www/Tasker_2/autoload.php",
+		"/D/wamp/www/Tasker_2/tests/src/CollectionTest.php",
+		"/D/wamp/www/Tasker_2/src/Collection.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/tests/src/CollectionTest.php",
+		"/D/wamp/www/Tasker_2/src/Database.php",
+		"/D/wamp/www/Tasker_2/tests/run_tests.cmd",
+		"/D/wamp/www/Tasker_2/tests/phpunit.xml.dist",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/tests/phpunit.xml.dist",
+		"/D/wamp/bin/php/php5.5.12/phpunit.cmd",
+		"/D/wamp/www/Tasker_2/composer_install.bat",
+		"/D/wamp/www/Tasker_2/tests/phpunit_.cmd",
+		"/D/wamp/www/Tasker_2/vendor/phpunit/phpunit/tests/bootstrap-travis.php",
+		"/D/wamp/www/Tasker_2/vendor/phpunit/phpunit/tests/bootstrap.php",
+		"/D/wamp/www/Tasker_2/vendor/phpunit/phpunit/src/Framework/TestCase.php",
+		"/D/wamp/www/Tasker_2/tests/phpunit.cmd",
+		"/D/wamp/www/Tasker_2/composer.json",
+		"/C/bin/phpunit.cmd",
+		"/D/wamp/www/Tasker_2/.travis.yml",
+		"/D/wamp/www/Tasker_2/vendor/autoload.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/composer.json",
+		"/D/wamp/www/Tasker_2/src/database.php",
+		"/D/wamp/www/Tasker_2/src/myUser.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/UserBase.php",
+		"/D/wamp/www/Tasker_2/index.php",
+		"/D/wamp/www/Tasker_2/src/php/taskmodel.php",
+		"/D/wamp/www/Tasker_2/src/php/database.php",
+		"/D/wamp/www/Tasker_2/src/php/myUser.php",
+		"/D/wamp/www/Tasker_2/login.php",
+		"/D/wamp/www/Tasker_2/register.php",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 2/Packages/Theme - Default/Default.sublime-theme",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/_getting_started_warlock (no_red).html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/warlocks.html",
+		"/D/8) Clouds/Drive/MasterworkDF Manual/MasterworkDwarfFortress/repository/js/script.js",
+		"/D/1) !!!/workshop_warlock.html",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/demo/ps/login.php",
+		"/D/wamp/www/Tasker_2/vendor/composer/autoload_real.php",
+		"/D/wamp/www/Tasker_2/src/uFlex/autoload.php",
+		"/D/wamp/www/Tasker_2/src/php/autoloader.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/demo/page/login.php",
+		"/D/wamp/www/Tasker_2/index.html",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/demo/index.php",
+		"/D/wamp/www/Tasker_2/1) src/php/taskmodel.php",
+		"/D/wamp/www/Tasker_2/1) src/js/tasker.js",
+		"/D/wamp/www/Tasker_2/1) src/uFlex/autoload.php",
+		"/D/wamp/www/Tasker_2/1) src/php/functions.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/myUser.php",
+		"/D/wamp/www/Tasker_2/1) src/uFlex/myUser.php",
+		"/D/wamp/www/Tasker_2/1) src/uFlex/autoloader.php",
+		"/D/wamp/www/Tasker_2/uflex.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/User.php",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/8-login-form/index.html",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/8-login-form/scss/style.scss",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/8-login-form/css/style.css",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/8-login-form/README.md",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/8-login-form/LICENSE",
+		"/D/wamp/www/Tasker_2/vendor/ptejada/uflex/src/shared/_about-dark.scss",
+		"/D/wamp/www/Tasker_2/1) src/php/autoloader.php",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/Phpcs/phpcs.sublime-settings",
+		"/D/wamp/bin/php/php5.5.12/pear/PHP/CodeSniffer/Standards/PSR2_tabs2/ruleset.xml",
+		"/D/wamp/www/uFlex/uFlex_master/src/User.php",
+		"/D/wamp/www/uFlex/uFlex_master/tests/src/CollectionTest.php",
+		"/D/wamp/www/uFlex/uFlex_master/src/UserBase.php",
+		"/D/wamp/www/uFlex/src/User.php",
+		"/D/wamp/www/uFlex/uFlex_master/src/Log.php",
+		"/D/wamp/www/uFlex/uFlex_master/autoload.php",
+		"/D/5) Games/Dwarf fortress/MasterworkDF 4b/Dwarf Fortress/dfhack.init",
+		"/D/wamp/bin/php/php5.5.12/pear/PHP/CodeSniffer/Standards/MySource/ruleset.xml",
+		"/D/wamp/bin/php/php5.5.12/pear/PHP/CodeSniffer/Standards/Generic/Sniffs/WhiteSpace/DisallowTabIndentSniff.php",
+		"/D/wamp/bin/php/php5.5.12/pear/PHP/CodeSniffer/Standards/MySource/Sniffs/Commenting/FunctionCommentSniff.php",
+		"/D/wamp/bin/php/php5.5.12/pear/PHP/CodeSniffer/Standards/PEARish/PEARishCodingStandard.php",
+		"/C/Users/Asva/AppData/Roaming/Sublime Text 3/Packages/User/Default (Windows).sublime-keymap",
+		"/D/wamp/bin/php/php5.5.12/pear/PHP/CodeSniffer/Standards/Zend/ruleset.xml"
+	],
+	"find":
+	{
+		"height": 45.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"items",
+			"Padding",
+			"...",
+			"axe blade",
+			"`\".",
+			"test",
+			"pdo",
+			"extensions",
+			"pdo",
+			"types",
+			"peat",
+			" - ",
+			"Faction",
+			"Варло",
+			"Варлоков",
+			"гем",
+			"convo",
+			"convoca",
+			"драгоцен",
+			"драгоценный камень",
+			"драго",
+			"драгоце",
+			"комнаты",
+			"метал\\b",
+			"метал\\B",
+			"метал/s",
+			"метал\\s",
+			"метал ",
+			"nether",
+			"exec",
+			"attract",
+			"пыток",
+			"Winter Bloodberries",
+			"Torture Chamber",
+			"convocation",
+			"(",
+			"scrying mirror",
+			"гуль",
+			"\n                    <tr>\n                      <td><br><sub></sub></td>\n                      <td></td>\n                    </tr>",
+			"Гнол",
+			"ethereal",
+			"дера",
+			"corrupted forge",
+			"Блоков",
+			"бойне",
+			"бойн",
+			"бойне",
+			"h1",
+			"<h1 align=\"center\">",
+			"варло",
+			"\n                      <tr>\n                        <td><br><sub></sub></td><td></td>\n                      </tr>",
+			"блоков",
+			"bag of gold dust",
+			"bags of herbs",
+			"thread",
+			"circles of protection",
+			"eerie flames",
+			"totems",
+			"тотема",
+			"flux",
+			"кусок флюса",
+			"обездви",
+			"bags of incense",
+			"\\sand\\s",
+			"and",
+			"серебрянной",
+			"1 candle",
+			"skin-covers",
+			"It costs",
+			"It costs:",
+			"circle of protection",
+			"1 greater circle of protection",
+			"3 greater circle of protection",
+			"circle of protection",
+			"1 circle of protection",
+			"circle of protection",
+			"gem sigil",
+			"ристальных",
+			"gem sigil",
+			"свечи",
+			"candles",
+			"\n                  <a href=\"reaction v3h/reaction_slaughterhouse.txt\" target=\"_blank\"></a>",
+			"тиски",
+			"Пресс",
+			"<td>data</td>",
+			"border-width",
+			"\",\n",
+			">Machine Operating<",
+			"Mason",
+			">Archeology<",
+			"варлок",
+			"Craftsman",
+			"Carpenter",
+			">Sorcery<",
+			">Architect<",
+			">Any Skill<",
+			">Any Labor<",
+			"mechanisms",
+			"Mechanisms",
+			"Blocks",
+			"blocks",
+			"height=\"24\" alt=\"back to top\"/>\n                </a>",
+			"<a href=\"#top\">\n                  <img src=\"icons/buildings/top.png\" width=\"89\" height=\"24\" alt=\"back to top\"/>\n                </a>",
+			"rus",
+			"Necromantic Shrine",
+			"crema",
+			"Tailor's Workshop",
+			"\n            <tr>\n              <th width=\"120\" scope=\"col\"><div align=\"center\"><strong>Build labor</strong></div></th>\n              <th width=\"120\" scope=\"col\"><div align=\"center\"><strong>Skill</strong></div></th>\n              <th width=\"120\" scope=\"col\"><div align=\"center\"><strong>Buildmat</strong></div></th>\n              <th width=\"104\" scope=\"col\"><div align=\"center\">Dimension</div></th>\n              <th width=\"120\" scope=\"col\">Requirements</th>\n            </tr>",
+			"user",
+			"1) src",
+			"tab",
+			"jpg",
+			"cathegory",
+			"ajax_call",
+			"cant find the sugar",
+			"code",
+			"Архивы",
+			"Видео",
+			"Текст",
+			"ore of",
+			"</em>",
+			"<em>",
+			"p align=\"center\"",
+			"abbr",
+			"id=\"hidden",
+			"  ",
+			"        ",
+			"  "
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": true,
+		"regex": true,
+		"replace_history":
+		[
+			"columns",
+			"sqls",
+			" — ",
+			"Фракция",
+			"Чернокнижников",
+			"самоцвет",
+			"металл",
+			"Corruption Chamber",
+			"",
+			"мешков фимиама",
+			" и ",
+			"и",
+			"серебряной",
+			"1 свеча",
+			"Цена:",
+			"1 великий круг защиты",
+			"3 великих круга защиты",
+			"1 круг защиты",
+			"свечи",
+			"",
+			">Машинист<",
+			"Каменщик",
+			">Археология<",
+			"Ремесленник",
+			"Плотник",
+			">Колдовство<",
+			">Архитектор<",
+			">Любой навык<",
+			">Любая профессия<",
+			"механизмов",
+			"Механизма",
+			"Блоков",
+			"блоков",
+			"height=\"24\" alt=\"back to top\"/>\n                </a><br><sub> </sub>",
+			"<a href=\"#top\">\n                  <img src=\"icons/buildings/top.png\" width=\"89\" height=\"24\" alt=\"back to top\"/>\n                </a><br><sub> </sub>",
+			"",
+			"src",
+			"Category",
+			"Arhives",
+			"Video",
+			"Text",
+			"",
+			"p",
+			"class=\"hidden",
+			" "
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "src/Database.php",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4775,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1596,
+								1596
+							]
+						],
+						"settings":
+						{
+							"auto_complete": false,
+							"codeintel": true,
+							"codeintel_config":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_files_in_project": false,
+									"javascriptExtraPaths":
+									[
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 5,
+									"codeintel_scan_files_in_project": false,
+									"phpExtraPaths":
+									[
+									]
+								},
+								"Python":
+								{
+									"env":
+									{
+									}
+								}
+							},
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_live_enabled_languages":
+							[
+								"JavaScript",
+								"Mason",
+								"XBL",
+								"XUL",
+								"RHTML",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"XSLT",
+								"Django",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Smarty",
+								"Node.js",
+								"Tcl",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": false,
+							"origPos": 2882.0,
+							"side_bar_folders_auto_load_folder": 1,
+							"sublime_auto_complete": true,
+							"syncScroll": false,
+							"syntax": "Packages/PHP/PHP.tmLanguage",
+							"tab_size": 4
+						},
+						"translation.x": 0.0,
+						"translation.y": 3476.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "index.php",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3226,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3087,
+								3087
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": false,
+							"origPos": 2916.0,
+							"syncScroll": false,
+							"syntax": "Packages/PHP/PHP.tmLanguage",
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 2916.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 7,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "src/User.php",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4519,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2948,
+								2948
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": false,
+							"origPos": 0.0,
+							"syncScroll": false,
+							"syntax": "Packages/PHP/PHP.tmLanguage",
+							"translate_tabs_to_spaces": true,
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 6,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "/D/Program files/TCPU63/Wincmd.ini",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 32703,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"origPos": 14369.0,
+							"syncScroll": false,
+							"syntax": "Packages/INI/INI.tmLanguage"
+						},
+						"translation.x": 13.0,
+						"translation.y": 14369.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 5,
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "src/functions.php",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3555,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": false,
+							"origPos": 243.0,
+							"syncScroll": false,
+							"syntax": "Packages/PHP/PHP.tmLanguage",
+							"translate_tabs_to_spaces": true,
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 243.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 5,
+					"file": "/D/wamp/www/editablegrid-master/examples/minimal/grid.xml",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 5137,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								446,
+								446
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": true,
+							"origPos": 0.0,
+							"syncScroll": false,
+							"syntax": "Packages/XML/XML.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 6,
+					"file": "js/tasker.js",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 2754,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								907,
+								907
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": false,
+							"origPos": 729.0,
+							"syncScroll": false,
+							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
+							"translate_tabs_to_spaces": true,
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 729.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 7,
+					"file": "src/Key.php",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 900,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								183,
+								183
+							]
+						],
+						"settings":
+						{
+							"codeintel": true,
+							"codeintel_database_dir": "~/.codeintel",
+							"codeintel_enabled_languages":
+							[
+								"JavaScript",
+								"SCSS",
+								"Python",
+								"HTML",
+								"Ruby",
+								"Python3",
+								"XML",
+								"Sass",
+								"HTML5",
+								"Perl",
+								"CSS",
+								"Twig",
+								"Less",
+								"Node.js",
+								"TemplateToolkit",
+								"PHP"
+							],
+							"codeintel_exclude_scopes_from_complete_triggers":
+							[
+								"comment"
+							],
+							"codeintel_language_settings":
+							{
+								"JavaScript":
+								{
+									"codeintel_max_recursive_dir_depth": 2,
+									"codeintel_scan_exclude_dir":
+									[
+										"/build/",
+										"/min/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": false,
+									"codeintel_selected_catalogs":
+									[
+										"jQuery"
+									]
+								},
+								"PHP":
+								{
+									"codeintel_max_recursive_dir_depth": 15,
+									"codeintel_scan_exclude_dir":
+									[
+										"/Applications/MAMP/bin/php/php5.5.3/"
+									],
+									"codeintel_scan_extra_dir":
+									[
+									],
+									"codeintel_scan_files_in_project": true,
+									"php": "/Applications/MAMP/bin/php/php5.5.3/bin/php"
+								},
+								"Python3":
+								{
+									"codeintel_scan_extra_dir":
+									[
+										"/Applications/Sublime Text.app/Contents/MacOS",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/arch",
+										"~/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/libs"
+									],
+									"codeintel_scan_files_in_project": true,
+									"codeintel_selected_catalogs":
+									[
+									],
+									"python3": "/usr/local/bin/python3.3"
+								}
+							},
+							"codeintel_live": true,
+							"codeintel_max_recursive_dir_depth": 10,
+							"codeintel_scan_exclude_dir":
+							[
+							],
+							"codeintel_scan_files_in_project": true,
+							"codeintel_selected_catalogs":
+							[
+							],
+							"codeintel_snippets": false,
+							"codeintel_syntax_map":
+							{
+								"Python Django": "Python"
+							},
+							"codeintel_tooltips": "popup",
+							"codeintel_word_completions": "buffer",
+							"is_xml": false,
+							"origPos": 0.0,
+							"syncScroll": false,
+							"syntax": "Packages/PHP/PHP.tmLanguage",
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 47.0
+	},
+	"input":
+	{
+		"height": 39.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			0.564583333333,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.xdebug":
+	{
+		"height": 148.0
+	},
+	"project": "tasker.sublime-project",
+	"replace":
+	{
+		"height": 82.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"selected_items":
+		[
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 379.0,
+		"selected_items":
+		[
+		],
+		"width": 392.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+		"xdebug":
+		{
+			"hide_conflict": false,
+			"restore_index":
+			{
+				"15":
+				{
+					"group": 0,
+					"index": 0
+				},
+				"38":
+				{
+					"group": 0,
+					"index": 3
+				},
+				"39":
+				{
+					"group": 0,
+					"index": 1
+				},
+				"40":
+				{
+					"group": 0,
+					"index": 2
+				},
+				"54":
+				{
+					"group": 1,
+					"index": 0
+				},
+				"59":
+				{
+					"group": 0,
+					"index": 4
+				}
+			},
+			"restore_layout":
+			{
+				"cells":
+				[
+					[
+						0,
+						0,
+						1,
+						1
+					],
+					[
+						1,
+						0,
+						2,
+						1
+					]
+				],
+				"cols":
+				[
+					0.0,
+					0.5859375,
+					1.0
+				],
+				"rows":
+				[
+					0.0,
+					1.0
+				]
+			}
+		}
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 165.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

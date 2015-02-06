@@ -1,0 +1,2 @@
+call phpunit
+PAUSE
