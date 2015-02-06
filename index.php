@@ -7,25 +7,16 @@
 
     <!-- Basic Page Needs
 ================================================== -->
+<title>Asvae/taskmaster</title>
 <meta charset="utf-8">
-<title>Tasker_2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content="">
 <meta name="author" content="">
 <meta name="version" content="1.1">
 <meta http-equiv="expires" content="0">
-<!-- Makes browser not load from cashe -->
 
-<!-- Mobile Specific Metas
-================================================== -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-<!-- CSS
-==================================================
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/skeleton.css">
-<link rel="stylesheet" href="css/layout.css">
-<link rel="stylesheet" href="css/docs.css">-->
-
+<link rel="stylesheet" href="vendor/kube/css/kube.min.css" />
+<!--
 <style>
 
 	code
@@ -73,13 +64,13 @@
 
     }
 </style>
-
+-->
 
 	<!-- JavaScript
 	================================================== -->
-	<script src="js/jquery-2.1.1.js"></script>
-	<script src="js/jquery.plugins.js"></script>
-	<script src="js/tasker.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.js" type="text/javascript"></script>
+    <script src="js/tasker.js" type="text/javascript"></script>
+    <script src="vendor/kube/js/kube.min.js" type="text/javascript"></script>
 
 	<!-- PHP
 	================================================== -->
